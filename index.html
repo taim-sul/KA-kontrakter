@@ -66,7 +66,6 @@ header{flex-shrink:0;height:56px;display:flex;align-items:center;gap:14px;paddin
 .btn-g{background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.25)}.btn-g:hover{background:rgba(34,197,94,.25)}
 .gone{display:none!important}
 .gls-hidden{display:none!important}
-.mont-hidden{display:none!important}
 .note{font-size:.72rem;color:var(--muted);line-height:1.4}
 /* CVR SEARCH */
 .cvr-row{display:flex;gap:7px;align-items:flex-end}
@@ -563,8 +562,6 @@ header{flex-shrink:0;height:56px;display:flex;align-items:center;gap:14px;paddin
 
     </div>
   </div>
-    </div>
-  </div>
   <div class="pv" id="preview"></div>
 </div>
 </div>
@@ -648,10 +645,8 @@ function switchType(t){
   const isMont=(t==='montør'||t==='montørmed');
   document.querySelectorAll('.mont-only').forEach(el=>el.classList.toggle('gone',!isMont));
   document.querySelectorAll('.ka-only').forEach(el=>el.classList.toggle('gone',isMont));
-  // Update løn label
   const loenLabel=document.getElementById('loen-label');
   if(loenLabel)loenLabel.textContent=isMont?'Månedsløn (kr.)':'Løn (kr.)';
-  // GLS view: hide most form cards, show only relevant ones
   document.querySelectorAll('.card').forEach(el=>el.classList.remove('gls-hidden'));
   if(t==='gls'){
     const showHeadings=['🏢 Virksomhed','👤 Medarbejder','🪪 Kørekort','✍️ Digital'];
@@ -754,9 +749,9 @@ let _expFmt = 'word';
 
 function setFmt(fmt, btn){
   _expFmt = fmt;
-  const fw=document.getElementById('fmt-word');const fp2=document.getElementById('fmt-pdf');
-  if(fw)fw.className=fmt==='word'?'btn btn-b':'btn btn-d';
-  if(fp2)fp2.className=fmt==='pdf'?'btn btn-b':'btn btn-d';
+  const _fw=document.getElementById('fmt-word');const _fp=document.getElementById('fmt-pdf');
+  if(_fw)_fw.className=fmt==='word'?'btn btn-b':'btn btn-d';
+  if(_fp)_fp.className=fmt==='pdf'?'btn btn-b':'btn btn-d';
   document.getElementById('exp-word-actions').style.display = fmt==='word' ? 'flex' : 'none';
   document.getElementById('exp-pdf-actions').style.display  = fmt==='pdf'  ? 'flex' : 'none';
   // Show native share button only if browser supports it
@@ -940,7 +935,6 @@ function render(){
   else if(contractType==='montør')renderMontør(arbUrl,medUrl,sigDato,loenMontStr,false);
   else if(contractType==='montørmed')renderMontør(arbUrl,medUrl,sigDato,loenMontStr,true);
   else renderGLS(arbUrl,medUrl,sigDato);
-  // Scale after next paint so dimensions are available
   requestAnimationFrame(scalePreview);
 }
 
@@ -1279,180 +1273,7 @@ function renderMontør(arbUrl,medUrl,sigDato,loenStr,isMedhjælper){
     </div>
   </div>`;
 }
-function cvrClearStatus(){
-  const s=document.getElementById('cvr-status');
-  if(s){s.textContent='';s.className='cvr-status';}
-}
 
-async function cvrLookup(){
-  const cvr=document.getElementById('v_cvr').value.replace(/\s/g,'');
-  const btn=document.getElementById('cvr-btn');
-  const status=document.getElementById('cvr-status');
-  if(!/^\d{8}$/.test(cvr)){
-    status.textContent='Indtast et gyldigt 8-cifret CVR-nummer';
-    status.className='cvr-status cvr-err';
-    return;
-  }
-  btn.disabled=true;
-  btn.textContent='⏳ Henter...';
-  status.textContent='';
-  status.className='cvr-status';
-  try{
-    // Use cvrapi.dk — free, no key needed for basic lookups
-    const res=await fetch(`https://cvrapi.dk/api?vat=${cvr}&country=dk`,{
-      headers:{'User-Agent':'KA-Kontrakt-Generator'}
-    });
-    if(!res.ok) throw new Error('Ikke fundet');
-    const d=await res.json();
-    if(d.error) throw new Error(d.error);
-    // Fill fields
-    if(d.name)   { document.getElementById('v_navn').value=d.name; }
-    if(d.address){ document.getElementById('v_adresse').value=d.address; }
-    const by=[d.zipcode,d.city].filter(Boolean).join(' ');
-    if(by)       { document.getElementById('v_by').value=by; }
-    if(d.phone)  { document.getElementById('v_tlf').value=d.phone; }
-    if(d.email)  { document.getElementById('v_email').value=d.email; }
-    render();
-    const filled=[d.name,d.address,by].filter(Boolean).length;
-    status.textContent=`✓ ${d.name||'Virksomhed'} fundet — ${filled} felter udfyldt`;
-    status.className='cvr-status cvr-ok';
-    toast('✅ CVR-data hentet for '+( d.name||cvr));
-  }catch(e){
-    const msg=e.message||'Ukendt fejl';
-    if(msg.toLowerCase().includes('failed to fetch')||msg.toLowerCase().includes('networkerror')){
-      status.textContent='⚠️ Netværksfejl — prøv igen';
-    } else {
-      status.textContent='Ingen virksomhed fundet for CVR '+cvr;
-    }
-    status.className='cvr-status cvr-err';
-  }finally{
-    btn.disabled=false;
-    btn.textContent='🔍 Hent data';
-  }
-}
-
-
-// ── MOBILE PANEL TOGGLE ──
-function mobShow(panel){
-  const mob = window.innerWidth <= 768;
-  const left = document.querySelector('.left');
-  const pv   = document.getElementById('preview');
-  const formBtn = document.getElementById('mob-form-btn');
-  const prevBtn = document.getElementById('mob-prev-btn');
-  const abar    = document.getElementById('abar');
-  if(!mob) return;
-  if(panel==='form'){
-    left.classList.add('mob-active');
-    pv.classList.remove('mob-active');
-    if(formBtn) formBtn.classList.add('on');
-    if(prevBtn) prevBtn.classList.remove('on');
-    if(abar)    abar.style.display='flex';
-  } else {
-    pv.classList.add('mob-active');
-    left.classList.remove('mob-active');
-    if(prevBtn) prevBtn.classList.add('on');
-    if(formBtn) formBtn.classList.remove('on');
-    if(abar)    abar.style.display='flex'; // keep visible on preview too
-    scalePreview();
-  }
-}
-
-// Scale contract pages to fit mobile screen
-function scalePreview(){
-  if(window.innerWidth > 768) return;
-  const pv = document.getElementById('preview');
-  if(!pv) return;
-  const avail = pv.offsetWidth - 16; // 8px each side padding
-  const pages = pv.querySelectorAll('.contract-page');
-  pages.forEach(p => {
-    const natural = 680; // contract design width
-    const scale   = Math.min(1, avail / natural);
-    const scaledH = p.scrollHeight * scale;
-    p.style.transform       = `scale(${scale})`;
-    p.style.transformOrigin = 'top center';
-    p.style.marginBottom    = `${scaledH - p.scrollHeight + 20}px`;
-    p.style.marginTop       = '0';
-  });
-}
-
-function initMobile(){
-  const mob = window.innerWidth <= 768;
-  const left = document.querySelector('.left');
-  const pv   = document.getElementById('preview');
-  if(mob){
-    left.classList.add('mob-active');
-    pv.classList.remove('mob-active');
-    // Ensure form tab is active
-    const fb = document.getElementById('mob-form-btn');
-    const pb = document.getElementById('mob-prev-btn');
-    if(fb) fb.classList.add('on');
-    if(pb) pb.classList.remove('on');
-  } else {
-    left.classList.remove('mob-active');
-    pv.classList.remove('mob-active');
-    // Reset any inline scale styles on desktop
-    pv.querySelectorAll('.contract-page').forEach(p=>{
-      p.style.transform='';p.style.marginBottom='';p.style.marginTop='';
-    });
-  }
-}
-
-window.addEventListener('resize', ()=>{ initMobile(); if(window.innerWidth<=768) scalePreview(); });
-
-// Reset transforms before printing so content is visible
-window.addEventListener('beforeprint',()=>{
-  const pv = document.getElementById('preview');
-  // Save and clear all inline constraints
-  document.body.dataset.bpOverflow = document.body.style.overflow||'';
-  document.body.style.overflow = 'visible';
-  if(pv){
-    pv.dataset.bpDisplay   = pv.style.display||'';
-    pv.dataset.bpHeight    = pv.style.height||'';
-    pv.dataset.bpOverflow  = pv.style.overflow||'';
-    pv.style.display   = 'block';
-    pv.style.height    = 'auto';
-    pv.style.overflow  = 'visible';
-  }
-  document.querySelectorAll('.contract-page').forEach(p=>{
-    p.dataset.bpTransform = p.style.transform||'';
-    p.dataset.bpMargin    = p.style.marginBottom||'';
-    p.style.transform     = 'none';
-    p.style.marginBottom  = '0';
-  });
-});
-window.addEventListener('afterprint',()=>{
-  const pv = document.getElementById('preview');
-  document.body.style.overflow = document.body.dataset.bpOverflow||'';
-  if(pv){
-    pv.style.display  = pv.dataset.bpDisplay||'';
-    pv.style.height   = pv.dataset.bpHeight||'';
-    pv.style.overflow = pv.dataset.bpOverflow||'';
-  }
-  document.querySelectorAll('.contract-page').forEach(p=>{
-    p.style.transform    = p.dataset.bpTransform||'';
-    p.style.marginBottom = p.dataset.bpMargin||'';
-  });
-});
-
-// Export modal init handled in showExportModal directly
-
-window.addEventListener('DOMContentLoaded',()=>{
-  if(localStorage.getItem('ka_v4')){
-    document.getElementById('rstM').classList.remove('gone');
-  } else {
-    switchType('fast');
-    render();
-  }
-  initMobile();
-  setTimeout(()=>{
-    initSig('sig_arb');
-    initSig('sig_med');
-    if(!document.getElementById('sig_dato').value){
-      document.getElementById('sig_dato').value=new Date().toISOString().split('T')[0];
-      render();
-    }
-  },100);
-});
 
 function renderGLS(arbUrl,medUrl,sigDato){
   const ds = sigDato ? fmtDate(sigDato) : '________________';
