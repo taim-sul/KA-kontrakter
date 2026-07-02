@@ -9,6 +9,7 @@
 <link rel="manifest" id="pwa-manifest">
 <title>KA Kontrakt Generator</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
 <style>
 :root{
   --bg:#0d0d11;--s1:#14141c;--s2:#1c1c28;--s3:#252535;
@@ -213,6 +214,7 @@ header{flex-shrink:0;height:56px;display:flex;align-items:center;gap:14px;paddin
 }
 
 @media print{
+  @page{size:A4;margin:0}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   html,body{
     height:auto!important;min-height:0!important;
@@ -236,7 +238,7 @@ header{flex-shrink:0;height:56px;display:flex;align-items:center;gap:14px;paddin
     margin:0 auto 0 auto!important;
     box-shadow:none!important;
     width:100%!important;max-width:none!important;
-    padding:10mm 15mm!important;
+    padding:12mm 16mm!important;
     page-break-after:always;
     display:block!important;
     overflow:visible!important;
@@ -595,8 +597,8 @@ header{flex-shrink:0;height:56px;display:flex;align-items:center;gap:14px;paddin
     <div style="margin-bottom:14px">
       <p style="font-size:.74rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Filformat</p>
       <div style="display:flex;gap:8px">
-        <label style="flex:1;display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:8px;border:1.5px solid var(--accent);background:rgba(59,130,246,.1);cursor:pointer;font-size:.85rem;font-weight:600">
-          <input type="radio" name="expfmt" value="html" checked style="accent-color:var(--accent)"> 📝 Word/HTML
+        <label style="flex:1;display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:8px;border:1.5px solid var(--accent);background:rgba(59,130,246,.1);cursor:pointer;font-size:.85rem;font-weight:600" id="exp-word-lbl">
+          <input type="radio" name="expfmt" value="html" checked style="accent-color:var(--accent)" onchange="updateFmtLabels()"> 📝 Word/HTML
         </label>
         <label style="flex:1;display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--s3);cursor:pointer;font-size:.85rem;font-weight:600" id="exp-pdf-lbl">
           <input type="radio" name="expfmt" value="pdf" style="accent-color:var(--accent)" onchange="updateFmtLabels()"> 🖨 PDF
@@ -710,7 +712,7 @@ const crow=(lbl,val,ph)=>`<div class="c-row"><span class="c-lbl">${lbl}</span>${
 function toast(msg,dur=2500){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur);}
 function showExportModal(){
   document.getElementById('expM').classList.remove('gone');
-  setTimeout(()=>setFmt(_expFmt||'word'), 30);
+  updateFmtLabels();
 }
 function closeModal(id){document.getElementById(id).classList.add('gone');}
 
@@ -752,26 +754,66 @@ function getContractHTML(){
 }
 
 // ── EXPORT FORMAT STATE ──
-let _expFmt = 'word';
-
-function setFmt(fmt, btn){
-  _expFmt = fmt;
-  const _fw=document.getElementById('fmt-word');const _fp=document.getElementById('fmt-pdf');
-  if(_fw)_fw.className=fmt==='word'?'btn btn-b':'btn btn-d';
-  if(_fp)_fp.className=fmt==='pdf'?'btn btn-b':'btn btn-d';
-  document.getElementById('exp-word-actions').style.display = fmt==='word' ? 'flex' : 'none';
-  document.getElementById('exp-pdf-actions').style.display  = fmt==='pdf'  ? 'flex' : 'none';
-  // Show native share button only if browser supports it
-  const ns = document.getElementById('btn-native-share');
-  if(ns) ns.style.display = navigator.share ? 'flex' : 'none';
+function getFmt(){
+  const r = document.querySelector('input[name="expfmt"]:checked');
+  return r ? r.value : 'html';
 }
 
+function updateFmtLabels(){
+  const isPdf = getFmt()==='pdf';
+  const w = document.getElementById('exp-word-lbl');
+  const p = document.getElementById('exp-pdf-lbl');
+  if(w){ w.style.borderColor = isPdf?'var(--border)':'var(--accent)'; w.style.background = isPdf?'var(--s3)':'rgba(59,130,246,.1)'; }
+  if(p){ p.style.borderColor = isPdf?'var(--accent)':'var(--border)'; p.style.background = isPdf?'rgba(59,130,246,.1)':'var(--s3)'; }
+}
+
+function getBaseName(){
+  return `KA_Ansættelsesbevis_${(v('m_navn')||'kontrakt').replace(/\s+/g,'_')}`;
+}
 function getDocName(){
-  return `KA_Ansættelsesbevis_${(v('m_navn')||'kontrakt').replace(/\s+/g,'_')}.doc`;
+  return getBaseName() + (getFmt()==='pdf' ? '.pdf' : '.doc');
+}
+function getMime(){
+  return getFmt()==='pdf' ? 'application/pdf' : 'application/msword';
 }
 
 function getDocBlob(){
   return new Blob([getContractHTML()], {type:'application/msword'});
+}
+
+// Generate a real PDF from the rendered contract pages (html2pdf.js)
+async function getPdfBlob(){
+  if(!window.html2pdf){
+    throw new Error('PDF-modulet kunne ikke indlæses (kræver internetforbindelse). Brug Print → "Gem som PDF" i stedet.');
+  }
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;left:-10000px;top:0;width:680px;background:#fff;z-index:-1;';
+  const st = document.createElement('style');
+  st.textContent = '.pdf-clone .contract-page{transform:none!important;margin:0!important;box-shadow:none!important;width:680px!important;max-width:none!important;background:#fff!important;page-break-after:always;}'
+    + '.pdf-clone .contract-page:last-child{page-break-after:auto;}'
+    + '.pdf-clone .c-sec,.pdf-clone .c-chk,.pdf-clone .c-tbl,.pdf-clone .c-sig-row,.pdf-clone .c-hdr{page-break-inside:avoid;}'
+    + '.pdf-clone .sig-clr{display:none!important;}';
+  wrap.className = 'pdf-clone';
+  wrap.appendChild(st);
+  document.querySelectorAll('#preview .contract-page').forEach(p=>{
+    wrap.appendChild(p.cloneNode(true));
+  });
+  document.body.appendChild(wrap);
+  try{
+    return await html2pdf().set({
+      margin: [8, 8, 10, 8],
+      image: {type:'jpeg', quality: 0.95},
+      html2canvas: {scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false},
+      jsPDF: {unit:'mm', format:'a4', orientation:'portrait'},
+      pagebreak: {mode: ['css','legacy']}
+    }).from(wrap).output('blob');
+  } finally {
+    wrap.remove();
+  }
+}
+
+async function getExportBlob(){
+  return getFmt()==='pdf' ? await getPdfBlob() : getDocBlob();
 }
 
 // ── ACTIONS ──
@@ -781,17 +823,21 @@ function doPrint(){
   setTimeout(()=>window.print(), 400);
 }
 
-function doDownload(){
-  const blob = getDocBlob();
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = getDocName(); a.click();
-  setTimeout(()=>URL.revokeObjectURL(url), 2000);
-  closeModal('expM');
-  toast('⬇️ '+getDocName()+' downloadet');
+async function doDownload(){
+  try{
+    if(getFmt()==='pdf') toast('⏳ Genererer PDF...', 4000);
+    const blob = await getExportBlob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = getDocName(); a.click();
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+    closeModal('expM');
+    toast('⬇️ '+getDocName()+' downloadet');
+  }catch(e){
+    toast('⚠️ '+(e.message||'Kunne ikke generere filen'), 5000);
+  }
 }
 
-function updateFmtLabels(){}
 function doShare(){doShareNative();}
 async function doShareNative(){
   const navn  = v('m_navn')||'medarbejder';
@@ -801,8 +847,9 @@ async function doShareNative(){
   const text  = `Hej ${navn},\n\nHermed ansættelsesbevis hos ${vnavn}, tiltrædelse ${dato}.\n\nMvh ${vnavn}`;
   if(!navigator.share){ doDownload(); return; }
   try{
-    const blob = getDocBlob();
-    const file = new File([blob], getDocName(), {type:'application/msword'});
+    if(getFmt()==='pdf') toast('⏳ Genererer PDF...', 4000);
+    const blob = await getExportBlob();
+    const file = new File([blob], getDocName(), {type:getMime()});
     const shareData = navigator.canShare && navigator.canShare({files:[file]})
       ? {files:[file], title, text}
       : {title, text};
@@ -811,47 +858,55 @@ async function doShareNative(){
     toast('✅ Delt!');
   }catch(e){
     if(e.name==='AbortError') return;
-    // Fallback: just download
+    // Fallback: download the file so it can be attached manually
     doDownload();
     toast('Del: vedhæft filen fra Downloads');
   }
 }
 
-function doWhatsApp(){
+async function doWhatsApp(){
   const navn  = v('m_navn')||'medarbejder';
   const vnavn = v('v_navn')||'virksomhed';
   const dato  = fmtDate(v('a_dato'))||'___';
   const msg   = `*Ansættelsesbevis – ${vnavn}*\nMedarbejder: ${navn}\nTiltrædelse: ${dato}\n\n_Filen er downloadet - vedhæft i WhatsApp_`;
-  // Download file first so user can attach it
-  const blob = getDocBlob();
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = getDocName(); a.click();
-  setTimeout(()=>URL.revokeObjectURL(url), 2000);
-  closeModal('expM');
-  setTimeout(()=>{
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-    toast('📎 Fil gemt – vedhæft den i WhatsApp');
-  }, 600);
+  try{
+    if(getFmt()==='pdf') toast('⏳ Genererer PDF...', 4000);
+    const blob = await getExportBlob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = getDocName(); a.click();
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+    closeModal('expM');
+    setTimeout(()=>{
+      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+      toast('📎 Fil gemt – vedhæft den i WhatsApp');
+    }, 600);
+  }catch(e){
+    toast('⚠️ '+(e.message||'Kunne ikke generere filen'), 5000);
+  }
 }
 
-function doEmail(){
+async function doEmail(){
   const navn  = v('m_navn')||'';
   const vnavn = v('v_navn')||'';
   const dato  = fmtDate(v('a_dato'))||'___';
   const sub   = `Ansættelsesbevis – ${navn}`;
   const body  = `Hej ${navn},\n\nHermed ansættelsesbevis for ansættelse hos ${vnavn} med tiltrædelse den ${dato}.\n\n(Vedhæft den downloadede fil til denne e-mail)\n\nMed venlig hilsen\n${vnavn}`;
-  // Download file first
-  const blob = getDocBlob();
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = getDocName(); a.click();
-  setTimeout(()=>URL.revokeObjectURL(url), 2000);
-  closeModal('expM');
-  setTimeout(()=>{
-    window.location.href = `mailto:${v('m_email')||''}?subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(body)}`;
-    toast('📎 Fil gemt – vedhæft den i e-mail');
-  }, 600);
+  try{
+    if(getFmt()==='pdf') toast('⏳ Genererer PDF...', 4000);
+    const blob = await getExportBlob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = getDocName(); a.click();
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+    closeModal('expM');
+    setTimeout(()=>{
+      window.location.href = `mailto:${v('m_email')||''}?subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(body)}`;
+      toast('📎 Fil gemt – vedhæft den i e-mail');
+    }, 600);
+  }catch(e){
+    toast('⚠️ '+(e.message||'Kunne ikke generere filen'), 5000);
+  }
 }
 
 // Legacy aliases
@@ -882,7 +937,7 @@ function blokSociale(){
     <div class="c-chk">${box(ck('si_sund'))} Sundhedsforsikring**</div>
     <div class="c-chk">${box(ck('si_arb'))} Arbejdsskadesikring ved ${v('si_forsikring')||'___'}</div>
     <p class="c-note">* Retten til løn under barsel opnås efter 9 måneders anciennitet, jf. &sect; 36.</p>
-    <p class="c-note">** Dæknings under sundhedsforsikring træder i kraft efter første indbetaling til pensionsordning.</p>
+    <p class="c-note">** Dækning under sundhedsforsikring træder i kraft efter første indbetaling til pensionsordning.</p>
   </div>`;
 }
 
@@ -1009,7 +1064,7 @@ function renderFast(optra,shText,loenStr,arbUrl,medUrl,sigDato){
       <p class="c-p">Medarbejderen er omfattet af Arbejdstidsloven og forpligter sig til at registrere sin arbejdstid iht. virksomhedens retningslinjer.</p>
     </div>
     <div class="c-sec">
-      <div class="c-sec-t">5. Lon og pension</div>
+      <div class="c-sec-t">5. L&oslash;n og pension</div>
       <p class="c-p">Lønnen er aftalt som bruttoløn, jf. &sect; 11, stk. 4: ${box(brutto==='ja')} Ja &nbsp; ${box(brutto==='nej')} Nej</p>
       <p class="c-p">Den personlige løn er aftalt til <strong>${loenStr}</strong>.</p>
       <p class="c-p">Lønnen opgøres fra ${fmtDate(v('l_fra'))||'___'} til ${fmtDate(v('l_til'))||'___'} og udbetales ${v('l_udb')==='mdr'?'den sidste hverdag i måneden':'senest to uger efter periodens afslutning'}.</p>
@@ -1022,13 +1077,13 @@ function renderFast(optra,shText,loenStr,arbUrl,medUrl,sigDato){
     </div>
     ${blokSociale()}
     <div class="c-sec">
-      <div class="c-sec-t">8. Ferie, optjente fridage og fravær med lon</div>
-      <p class="c-p">Der ydes feriegodtgørelse med 12,5% iht. &sect;&sect; 26&ndash;26F. Ret til optjente fridage jf. &sect; 27. Fravær med fuld løn gives ved: særlige mærkedage (&sect; 28), sygdom hos børn under 14 år (&sect; 29, stk. 1), børns hospitalsindlæggelse (&sect; 29, stk. 2), nærtståendes alvorlige sygdom/dodsfald (&sect; 29, stk. 3), egen sygdom (&sect; 34), efter-/videreuddannelse (&sect; 45), barsel og adoption (&sect; 36).</p>
+      <div class="c-sec-t">8. Ferie, optjente fridage og fravær med l&oslash;n</div>
+      <p class="c-p">Der ydes feriegodtgørelse med 12,5% iht. &sect;&sect; 26&ndash;26F. Ret til optjente fridage jf. &sect; 27. Fravær med fuld løn gives ved: særlige mærkedage (&sect; 28), sygdom hos børn under 14 år (&sect; 29, stk. 1), børns hospitalsindlæggelse (&sect; 29, stk. 2), nærtståendes alvorlige sygdom/d&oslash;dsfald (&sect; 29, stk. 3), egen sygdom (&sect; 34), efter-/videreuddannelse (&sect; 45), barsel og adoption (&sect; 36).</p>
     </div>
     <div class="c-sec">
       <div class="c-sec-t">9. Sygdom</div>
       <p class="c-p">Meddelelse ved sygdom gives til ${v('syg_kontakt')||'___'} på tlf. ${v('syg_tlf')||'___'} tidligst muligt, dog senest kl. ${v('syg_tid')||'___'}. SMS/chatapp accepteres: ${box(sms==='ja')} Ja &nbsp; ${box(sms==='nej')} Nej</p>
-      <p class="c-p">Medarbejderen er forpligtet til jævnligt at holde virksomheden orienteret om sygefraværsets forventede varighed.</p>
+      <p class="c-p">Medarbejderen er forpligtet til jævnligt at holde virksomheden orienteret om sygefraværets forventede varighed.</p>
     </div>
     <div class="c-sec">
       <div class="c-sec-t">10. Opsigelsesvarsel</div>
@@ -1040,10 +1095,10 @@ function renderFast(optra,shText,loenStr,arbUrl,medUrl,sigDato){
     </div>
     <div class="c-sec">
       <div class="c-sec-t">12. Beskyttelse af persondata</div>
-      <p class="c-p">Medarbejderen er bekendt med, at personaleadministration nødvendiggør behandling af personoplysninger (bl.a. CPR-nr., lønoplysninger, tidsregistrering, ferie- og fraværsperioder, pensionsoplysninger). Klagen kan indgives til Datatilsynet.</p>
+      <p class="c-p">Medarbejderen er bekendt med, at personaleadministration nødvendiggør behandling af personoplysninger (bl.a. CPR-nr., lønoplysninger, tidsregistrering, ferie- og fraværsperioder, pensionsoplysninger). Klage kan indgives til Datatilsynet.</p>
     </div>
     <div class="c-sec">
-      <div class="c-sec-t">13. Anden lonnet beskæftigelse</div>
+      <div class="c-sec-t">13. Anden l&oslash;nnet beskæftigelse</div>
       <p class="c-p">Sideløbende beskæftigelse må ikke være uforenelig med ansættelsesforholdet. Inden aftale indgås, orienteres virksomheden skriftligt om bibeskæftigelsens art, arbejdsgiver, arbejdstid mv.</p>
     </div>
     ${udd==='ja'?`<div class="c-sec"><div class="c-sec-t">14. Uddannelse</div><p class="c-p">Medarbejderen har ret til anden uddannelse end den, der følger af overenskomsten.</p></div>`:''}
@@ -1114,7 +1169,7 @@ function renderLoest(optra,shText,loenStr,arbUrl,medUrl,sigDato){
       <p class="c-p">Arbejdstiden varierer efter tilkald og aftale. Der er ikke aftalt fast arbejdstid pr. uge.</p>
     </div>
     <div class="c-sec">
-      <div class="c-sec-t">5. Lon og pension</div>
+      <div class="c-sec-t">5. L&oslash;n og pension</div>
       <p class="c-p">Den personlige løn er aftalt til <strong>${loenStr}</strong>.</p>
       <p class="c-p">Pensionsbidrag udbetales som tillæg til lønnen: ${box(pentill==='ja')} Ja &nbsp; ${box(pentill==='nej')} Nej</p>
       <p class="c-p">Lønnen opgøres fra ${fmtDate(v('l_fra'))||'___'} til ${fmtDate(v('l_til'))||'___'} og udbetales ${v('l_udb')==='mdr'?'den sidste hverdag i måneden':'senest to uger efter periodens afslutning'}.</p>
@@ -1249,7 +1304,7 @@ function renderMontør(arbUrl,medUrl,sigDato,loenStr,isMedhjælper){
 
     <div class="c-sec">
       <div class="c-sec-t">${proeve!=='nej'?'10':'9'}. Tavshedspligt</div>
-      <p class="c-p">Medarbejderen er forpligtet til at iagttage tavshed om alle fortrolige oplysninger vedrørende arbejdsgiverens kunder, samarbejdspartnere, forretningsgange og andre fortrolige forhold. Tavshedspligten gælder også efter ansættelsesforholdets ophor.</p>
+      <p class="c-p">Medarbejderen er forpligtet til at iagttage tavshed om alle fortrolige oplysninger vedrørende arbejdsgiverens kunder, samarbejdspartnere, forretningsgange og andre fortrolige forhold. Tavshedspligten gælder også efter ansættelsesforholdets oph&oslash;r.</p>
     </div>
 
     <div class="c-sec">
