@@ -325,6 +325,13 @@ header{flex-shrink:0;height:56px;display:flex;align-items:center;gap:14px;paddin
         <div class="sb">
           <div class="f"><label>Tiltrædelsesdato</label><input id="a_dato" type="date" onchange="render()"></div>
           <div class="f fast-only"><label>Anciennitet regnes fra</label><input id="a_anciennitet" type="date" onchange="render()"></div>
+          <div class="f ka-only">
+            <label>Stilling</label>
+            <div class="rads" style="margin-top:6px">
+              <label class="rad"><input type="radio" name="stilling" value="chauffoer" onchange="render()" checked> Godschauffør</label>
+              <label class="rad"><input type="radio" name="stilling" value="medhjaelper" onchange="render()"> Chaufførmedhjælper</label>
+            </div>
+          </div>
           <div class="f"><label>Arbejdsopgaver</label><textarea id="a_opgaver" oninput="render()" placeholder="fx fragt af gods, distribution..."></textarea></div>
           <div class="f fast-only">
             <label>Tidsbegrænset?</label>
@@ -717,7 +724,7 @@ function getFormState(){
    'si_forsikring','syg_kontakt','syg_tlf','syg_tid','ov_interval','optra_dato','sig_dato',
    'mont_timer','mont_pension','mont_pen_arb','mont_pen_med','mont_ops','mont_lonreg'
   ].forEach(id=>{const el=document.getElementById(id);if(el)state.inputs[id]=el.value;});
-  ['tidsbeg','lok','lokl','uforuda','refp','loentype','brutto','sh','shtype','pentill','sms','udd','optra','mont_over','mont_proeve'].forEach(name=>{
+  ['stilling','tidsbeg','lok','lokl','uforuda','refp','loentype','brutto','sh','shtype','pentill','sms','udd','optra','mont_over','mont_proeve'].forEach(name=>{
     const el=document.querySelector(`input[name="${name}"]:checked`);if(el)state.radios[name]=el.value;
   });
   ['si_atp','si_amb','si_bars','si_sund','si_arb','ov_papirer','ov_alkohol','ov_firmabil','ov_beklaedn','ov_gps','ov_håndbog'].forEach(id=>{
@@ -806,7 +813,7 @@ async function doShareNative(){
     if(e.name==='AbortError') return;
     // Fallback: just download
     doDownload();
-    toast('Del: vedhaft filen fra Downloads');
+    toast('Del: vedhæft filen fra Downloads');
   }
 }
 
@@ -884,10 +891,10 @@ function blokØvrige(){
   return`<div class="c-sec">
     <div class="c-sec-t">Øvrige vilkår</div>
     ${ck('ov_papirer')?`<p class="c-p">Papirer (fx folge-/fragtbreve) og kørelsrapporter skal afleveres ${int}.</p>`:''}
-    ${ck('ov_alkohol')?`<p class="c-p">Det er ikke tilladt at være påvirket af alkohol, euforiserende stoffer eller staerkt stemningsændrende medicin. Overtrædelse medfører bortvisning.</p>`:''}
+    ${ck('ov_alkohol')?`<p class="c-p">Det er ikke tilladt at være påvirket af alkohol, euforiserende stoffer eller stærkt stemningsændrende medicin. Overtrædelse medfører bortvisning.</p>`:''}
     ${ck('ov_firmabil')?`<p class="c-p">Firmabiler må ikke bruges til privatbrug efter arbejdstid. Overtrædelse medfører bortvisning.</p>`:''}
-    ${ck('ov_beklaedn')?`<p class="c-p">Virksomheden stiller arbejdstøj og sikkerhedssko til rådighed, som skal baeres under arbejdet. Ved fratrædelse tilbageleveres dette.</p>`:''}
-    ${ck('ov_gps')?`<p class="c-p">Alle virksomhedens køretøjer er forsynet med GPS til driftsmæssige formaal samt som kontrolforanstaltning af kørelsruter.</p>`:''}
+    ${ck('ov_beklaedn')?`<p class="c-p">Virksomheden stiller arbejdstøj og sikkerhedssko til rådighed, som skal bæres under arbejdet. Ved fratrædelse tilbageleveres dette.</p>`:''}
+    ${ck('ov_gps')?`<p class="c-p">Alle virksomhedens køretøjer er forsynet med GPS til driftsmæssige formål samt som kontrolforanstaltning af kørselsruter.</p>`:''}
     <label class="c-chk" style="cursor:pointer;display:flex;align-items:flex-start;gap:6px;"><input type="checkbox" id="cb_haandbog_preview" ${ck('ov_håndbog')?'checked':''} onchange="document.getElementById('ov_håndbog').checked=this.checked;render()" style="width:11px;height:11px;accent-color:#1a3a8f;cursor:pointer;margin-top:2px;flex-shrink:0;"> Medarbejderhåndbog udleveret</label>
   </div>`;
 }
@@ -940,6 +947,8 @@ function render(){
 
 function renderFast(optra,shText,loenStr,arbUrl,medUrl,sigDato){
   const tidsbeg=rad('tidsbeg'),refp=rad('refp'),uforuda=rad('uforuda');
+  const erMedhj=rad('stilling')==='medhjaelper';
+  const stillingTxt=erMedhj?'chaufførmedhjælper':'godschauffør';
   const lok=rad('lok'),brutto=rad('brutto'),sms=rad('sms'),udd=rad('udd');
   document.getElementById('preview').innerHTML=`
   <div class="contract-page">
@@ -973,16 +982,16 @@ function renderFast(optra,shText,loenStr,arbUrl,medUrl,sigDato){
     <div class="c-sec">
       <div class="c-sec-t">1. Medarbejderens oplysninger</div>
       <table class="c-tbl">
-        <tr><td>Kørekortnr.:</td><td>${v('kk_nr')||'___'} &nbsp; Udlob: ${fmtDate(v('kk_udlob'))||'___'}</td></tr>
-        <tr><td>EU-kortnr.:</td><td>${v('eu_nr')||'___'} &nbsp; Udlob: ${fmtDate(v('eu_udlob'))||'___'}</td></tr>
-        <tr><td>Forerkortnr.:</td><td>${v('fk_nr')||'___'} &nbsp; Udlob: ${fmtDate(v('fk_udlob'))||'___'}</td></tr>
+        <tr><td>Kørekortnr.:</td><td>${v('kk_nr')||'___'} &nbsp; Udløb: ${fmtDate(v('kk_udlob'))||'___'}</td></tr>
+        <tr><td>EU-kortnr.:</td><td>${v('eu_nr')||'___'} &nbsp; Udløb: ${fmtDate(v('eu_udlob'))||'___'}</td></tr>
+        <tr><td>Førerkortnr.:</td><td>${v('fk_nr')||'___'} &nbsp; Udløb: ${fmtDate(v('fk_udlob'))||'___'}</td></tr>
       </table>
-      <p class="c-p"><span class="c-b">Kørekort:</span> Der kræves gyldigt kørekort mv. Mistet kørekort mv. medfører bortvisning.</p>
+      ${erMedhj?'':`<p class="c-p"><span class="c-b">Kørekort:</span> Der kræves gyldigt kørekort mv. Mistet kørekort mv. medfører bortvisning.</p>`}
       <p class="c-p"><span class="c-b">Straffeattest:</span> Ved anmodning skal medarbejderen straks fremsende straffeattest eller godkende, at virksomheden kan indhente denne.</p>
     </div>
     <div class="c-sec">
       <div class="c-sec-t">2. Arbejdsopgaver, tiltrædelse og varighed</div>
-      <p class="c-p">Medarbejderen er ansat som godschauffør. Arbejdet består af ${v('a_opgaver')||'___'}.</p>
+      <p class="c-p">Medarbejderen er ansat som ${stillingTxt}. Arbejdet består af ${v('a_opgaver')||'___'}.</p>
       <p class="c-p">Tiltrædelses-/ikrafttrædelsesdato er den <strong>${fmtDate(v('a_dato'))||'___'}</strong>. Ancienniteten regnes fra den <strong>${fmtDate(v('a_anciennitet'))||fmtDate(v('a_dato'))||'___'}</strong>.</p>
       <div class="c-chk">${box(tidsbeg==='ja')} Ansættelsen er tidsbegrænset til: ${tidsbeg==='ja'?(v('a_tidsbeg_dato')||'___'):''}</div>
       <div class="c-chk">${box(tidsbeg==='nej')} Nej &mdash; løbende ansættelse</div>
@@ -995,13 +1004,13 @@ function renderFast(optra,shText,loenStr,arbUrl,medUrl,sigDato){
     <div class="c-sec">
       <div class="c-sec-t">4. Arbejdssted, arbejdstid og tidsregistrering</div>
       <p class="c-p">Arbejdsstedet er ${v('v_arbejdssted')||v('v_adresse')||'___'}.</p>
-      <p class="c-p">Arbejdstiden udgor ${v('at_timer')||'___'} timer om ugen. Arbejdstiden er helt/overvejende uforudsigelig: ${box(uforuda==='ja')} Ja &nbsp; ${box(uforuda==='nej')} Nej.</p>
+      <p class="c-p">Arbejdstiden udgør ${v('at_timer')||'___'} timer om ugen. Arbejdstiden er helt/overvejende uforudsigelig: ${box(uforuda==='ja')} Ja &nbsp; ${box(uforuda==='nej')} Nej.</p>
       <p class="c-p">Opgøres over referenceperiode, jf. &sect; 15: ${box(refp==='ja')} Ja${refp==='ja'?` (${v('at_refuger')||'__'} uger)`:''} &nbsp; ${box(refp==='nej')} Nej</p>
       <p class="c-p">Medarbejderen er omfattet af Arbejdstidsloven og forpligter sig til at registrere sin arbejdstid iht. virksomhedens retningslinjer.</p>
     </div>
     <div class="c-sec">
       <div class="c-sec-t">5. Lon og pension</div>
-      <p class="c-p">Lønnen er aftalt som bruttolon, jf. &sect; 11, stk. 4: ${box(brutto==='ja')} Ja &nbsp; ${box(brutto==='nej')} Nej</p>
+      <p class="c-p">Lønnen er aftalt som bruttoløn, jf. &sect; 11, stk. 4: ${box(brutto==='ja')} Ja &nbsp; ${box(brutto==='nej')} Nej</p>
       <p class="c-p">Den personlige løn er aftalt til <strong>${loenStr}</strong>.</p>
       <p class="c-p">Lønnen opgøres fra ${fmtDate(v('l_fra'))||'___'} til ${fmtDate(v('l_til'))||'___'} og udbetales ${v('l_udb')==='mdr'?'den sidste hverdag i måneden':'senest to uger efter periodens afslutning'}.</p>
       <p class="c-p">Der oprettes pension iht. overenskomstens &sect; 14. Se endvidere Erklæring om pensionsordning.</p>
@@ -1014,7 +1023,7 @@ function renderFast(optra,shText,loenStr,arbUrl,medUrl,sigDato){
     ${blokSociale()}
     <div class="c-sec">
       <div class="c-sec-t">8. Ferie, optjente fridage og fravær med lon</div>
-      <p class="c-p">Der ydes feriegodtgørelse med 12,5% iht. &sect;&sect; 26&ndash;26F. Ret til optjente fridage jf. &sect; 27. Fravær med fuld løn gives ved: særlige mærkedage (&sect; 28), sygdom hos børn under 14 aar (&sect; 29, stk. 1), børns hospitalsindlæggelse (&sect; 29, stk. 2), nærstående alvorlige sygdom/dodsfald (&sect; 29, stk. 3), egen sygdom (&sect; 34), efter-/videreuddannelse (&sect; 45), barsel og adoption (&sect; 36).</p>
+      <p class="c-p">Der ydes feriegodtgørelse med 12,5% iht. &sect;&sect; 26&ndash;26F. Ret til optjente fridage jf. &sect; 27. Fravær med fuld løn gives ved: særlige mærkedage (&sect; 28), sygdom hos børn under 14 år (&sect; 29, stk. 1), børns hospitalsindlæggelse (&sect; 29, stk. 2), nærtståendes alvorlige sygdom/dodsfald (&sect; 29, stk. 3), egen sygdom (&sect; 34), efter-/videreuddannelse (&sect; 45), barsel og adoption (&sect; 36).</p>
     </div>
     <div class="c-sec">
       <div class="c-sec-t">9. Sygdom</div>
@@ -1027,21 +1036,21 @@ function renderFast(optra,shText,loenStr,arbUrl,medUrl,sigDato){
     </div>
     <div class="c-sec">
       <div class="c-sec-t">11. Tavshedspligt</div>
-      <p class="c-p">Såvel under som efter ansættelsesforholdets ophør har medarbejderen tavshedspligt om virksomhedens kunder og ovrige forhold. Overtrædelse kan medføre bortvisning samt straf- og/eller erstatningsansvar.</p>
+      <p class="c-p">Såvel under som efter ansættelsesforholdets ophør har medarbejderen tavshedspligt om virksomhedens kunder og øvrige forhold. Overtrædelse kan medføre bortvisning samt straf- og/eller erstatningsansvar.</p>
     </div>
     <div class="c-sec">
       <div class="c-sec-t">12. Beskyttelse af persondata</div>
-      <p class="c-p">Medarbejderen er bekendt med, at personaleadministration nødvendiggorer behandling af personoplysninger (bl.a. CPR-nr., lønoplysninger, tidsregistrering, ferie- og fraværsperioder, pensionsoplysninger). Klagen kan indgives til Datatilsynet.</p>
+      <p class="c-p">Medarbejderen er bekendt med, at personaleadministration nødvendiggør behandling af personoplysninger (bl.a. CPR-nr., lønoplysninger, tidsregistrering, ferie- og fraværsperioder, pensionsoplysninger). Klagen kan indgives til Datatilsynet.</p>
     </div>
     <div class="c-sec">
       <div class="c-sec-t">13. Anden lonnet beskæftigelse</div>
       <p class="c-p">Sideløbende beskæftigelse må ikke være uforenelig med ansættelsesforholdet. Inden aftale indgås, orienteres virksomheden skriftligt om bibeskæftigelsens art, arbejdsgiver, arbejdstid mv.</p>
     </div>
-    ${udd==='ja'?`<div class="c-sec"><div class="c-sec-t">14. Uddannelse</div><p class="c-p">Medarbejderen har ret til anden uddannelse end den, der folger af overenskomsten.</p></div>`:''}
+    ${udd==='ja'?`<div class="c-sec"><div class="c-sec-t">14. Uddannelse</div><p class="c-p">Medarbejderen har ret til anden uddannelse end den, der følger af overenskomsten.</p></div>`:''}
     ${blokØvrige()}
     <div class="c-sec">
       <div class="c-sec-t">Underskrifter</div>
-      <p class="c-p">Medarbejderen bekræfter ved underskrift ikke at lide af en sygdom med væsentlig betydning for arbejdsdygtigheden. Nærværende ansættelsesbevis underskrives i to eksemplarer, hvoraf hver part modtager eet.</p>
+      <p class="c-p">Medarbejderen bekræfter ved underskrift ikke at lide af en sygdom med væsentlig betydning for arbejdsdygtigheden. Nærværende ansættelsesbevis underskrives i to eksemplarer, hvoraf hver part modtager ét.</p>
       ${sigBlock(arbUrl,medUrl,sigDato)}
     </div>
   </div>
@@ -1050,13 +1059,14 @@ function renderFast(optra,shText,loenStr,arbUrl,medUrl,sigDato){
 
 function renderLoest(optra,shText,loenStr,arbUrl,medUrl,sigDato){
   const lok=rad('lokl'),pentill=rad('pentill'),sms=rad('sms');
+  const erMedhj=rad('stilling')==='medhjaelper';
   document.getElementById('preview').innerHTML=`
   <div class="contract-page">
     ${kaLogoImg()}
     <div class="c-hdr">
       <div class="c-badge">KA &middot; Krifa &mdash; Overenskomst 2025&ndash;2028 &middot; Transport</div>
       <h1>Ansættelsesbevis</h1>
-      <h2>for løstansatte chauffører indenfor godstransport</h2>
+      <h2>for løstansatte ${erMedhj?'chaufførmedhjælpere':'chauffører'} indenfor godstransport</h2>
     </div>
     <div class="c-sec">
       <div class="c-sec-t">Parterne</div>
@@ -1082,20 +1092,20 @@ function renderLoest(optra,shText,loenStr,arbUrl,medUrl,sigDato){
     <div class="c-sec">
       <div class="c-sec-t">1. Medarbejderens oplysninger</div>
       <table class="c-tbl">
-        <tr><td>Kørekortnr.:</td><td>${v('kk_nr')||'___'} &nbsp; Udlob: ${fmtDate(v('kk_udlob'))||'___'}</td></tr>
-        <tr><td>EU-kortnr.:</td><td>${v('eu_nr')||'___'} &nbsp; Udlob: ${fmtDate(v('eu_udlob'))||'___'}</td></tr>
-        <tr><td>Forerkortnr.:</td><td>${v('fk_nr')||'___'} &nbsp; Udlob: ${fmtDate(v('fk_udlob'))||'___'}</td></tr>
+        <tr><td>Kørekortnr.:</td><td>${v('kk_nr')||'___'} &nbsp; Udløb: ${fmtDate(v('kk_udlob'))||'___'}</td></tr>
+        <tr><td>EU-kortnr.:</td><td>${v('eu_nr')||'___'} &nbsp; Udløb: ${fmtDate(v('eu_udlob'))||'___'}</td></tr>
+        <tr><td>Førerkortnr.:</td><td>${v('fk_nr')||'___'} &nbsp; Udløb: ${fmtDate(v('fk_udlob'))||'___'}</td></tr>
       </table>
-      <p class="c-p"><span class="c-b">Kørekort:</span> Der kræves gyldigt kørekort mv. Mistet kørekort medfører bortvisning.</p>
+      ${erMedhj?'':`<p class="c-p"><span class="c-b">Kørekort:</span> Der kræves gyldigt kørekort mv. Mistet kørekort medfører bortvisning.</p>`}
     </div>
     <div class="c-sec">
       <div class="c-sec-t">2. Arbejdsopgaver og tiltrædelse</div>
-      <p class="c-p">Den løst ansatte er beskæftiget som løstansat chauffør til godstransport. Opgaverne kan bl.a. bestå af ${v('a_opgaver')||'fragt af gods'}.</p>
+      <p class="c-p">Den løst ansatte er beskæftiget som løstansat ${erMedhj?'chaufførmedhjælper':'chauffør'} til godstransport. Opgaverne kan bl.a. bestå af ${v('a_opgaver')||'fragt af gods'}.</p>
       <p class="c-p">Aftalen træder i kraft den <strong>${fmtDate(v('a_dato'))||'___'}</strong>. Tilknytningen ophører, når opgaven er fuldført.</p>
     </div>
     <div class="c-sec">
       <div class="c-sec-t">3. Overenskomst</div>
-      <p class="c-p">Nærværende aflosseraftale er omfattet af den til enhver tid gældende overenskomst mellem Arbejdsgiverforeningen KA og Krifa (2025&ndash;2028). Fagområde: transport.</p>
+      <p class="c-p">Nærværende afløseraftale er omfattet af den til enhver tid gældende overenskomst mellem Arbejdsgiverforeningen KA og Krifa (2025&ndash;2028). Fagområde: transport.</p>
       <div class="c-chk">${box(lok==='ja')} Lokalaftale indgået, jf. &sect; 48 &nbsp;&nbsp; ${box(lok==='nej')} Nej</div>
     </div>
     <div class="c-sec">
@@ -1117,7 +1127,7 @@ function renderLoest(optra,shText,loenStr,arbUrl,medUrl,sigDato){
     ${blokSociale()}
     <div class="c-sec">
       <div class="c-sec-t">8. Ferie og optjente fridage</div>
-      <p class="c-p">Der ydes feriegodtgørelse med 12,5% iht. &sect;&sect; 26&ndash;26F. Ret til optjente fridage jf. &sect; 27. Fravær med fuld løn gives ved: særlige mærkedage (&sect; 28), sygdom hos børn under 14 aar (&sect; 29, stk. 1), nærstående alvorlige sygdom (&sect; 29, stk. 3), barsel og adoption (&sect; 36).</p>
+      <p class="c-p">Der ydes feriegodtgørelse med 12,5% iht. &sect;&sect; 26&ndash;26F. Ret til optjente fridage jf. &sect; 27. Fravær med fuld løn gives ved: særlige mærkedage (&sect; 28), sygdom hos børn under 14 år (&sect; 29, stk. 1), nærtståendes alvorlige sygdom (&sect; 29, stk. 3), barsel og adoption (&sect; 36).</p>
     </div>
     <div class="c-sec">
       <div class="c-sec-t">9. Sygdom</div>
@@ -1129,12 +1139,12 @@ function renderLoest(optra,shText,loenStr,arbUrl,medUrl,sigDato){
     </div>
     <div class="c-sec">
       <div class="c-sec-t">11. Tavshedspligt og GDPR</div>
-      <p class="c-p">Tavshedspligt om virksomhedens kunder og ovrige forhold gaolder såvel under som efter ansættelsesforholdets ophør. Personoplysninger behandles til personaleadministration iht. GDPR.</p>
+      <p class="c-p">Tavshedspligt om virksomhedens kunder og øvrige forhold gælder såvel under som efter ansættelsesforholdets ophør. Personoplysninger behandles til personaleadministration iht. GDPR.</p>
     </div>
     ${blokØvrige()}
     <div class="c-sec">
       <div class="c-sec-t">Underskrifter</div>
-      <p class="c-p">Nærværende ansættelsesbevis underskrives i to eksemplarer, hvoraf hver part modtager eet.</p>
+      <p class="c-p">Nærværende ansættelsesbevis underskrives i to eksemplarer, hvoraf hver part modtager ét.</p>
       ${sigBlock(arbUrl,medUrl,sigDato)}
     </div>
   </div>
@@ -1188,35 +1198,35 @@ function renderMontør(arbUrl,medUrl,sigDato,loenStr,isMedhjælper){
 
     <div class="c-sec">
       <div class="c-sec-t">2. Arbejdets indhold</div>
-      <p class="c-p">Medarbejderen ansaettes som ${stilling} og har til opgave at ${opgaver}.</p>
+      <p class="c-p">Medarbejderen ansættes som ${stilling} og har til opgave at ${opgaver}.</p>
       <p class="c-p">Arbejdet udføres primært som underleverandørydelse til Bring, og medarbejderen er forpligtet til at overholde de til enhver tid gældende krav og retningslinjer fra Bring.</p>
-      <p class="c-p">Arbejdsgiveren kan pålægge medarbejderen andre opgaver, der naturligt hoerer til stillingen.</p>
+      <p class="c-p">Arbejdsgiveren kan pålægge medarbejderen andre opgaver, der naturligt hører til stillingen.</p>
     </div>
 
     <div class="c-sec">
       <div class="c-sec-t">3. Arbejdstid</div>
-      <p class="c-p">Den normale ugentlige arbejdstid udgoer ${timer} timer eksklusive pauser.</p>
+      <p class="c-p">Den normale ugentlige arbejdstid udgør ${timer} timer eksklusive pauser.</p>
       <p class="c-p">Arbejdstiden placeres af arbejdsgiveren og kan variere afhængigt af opgavernes omfang og placering.</p>
-      <p class="c-p">Overarbejde kan forekomme og honoreres ${rad('mont_over')==='nej'?'ikke':'i henhold til særskilt aftale'}. Overarbejde maa ikke udføres i strid med arbejdsmiljolovgivningens regler om hviletid og maksimal arbejdstid.</p>
+      <p class="c-p">Overarbejde kan forekomme og honoreres ${rad('mont_over')==='nej'?'ikke':'i henhold til særskilt aftale'}. Overarbejde må ikke udføres i strid med arbejdsmiljølovgivningens regler om hviletid og maksimal arbejdstid.</p>
     </div>
 
     <div class="c-sec">
       <div class="c-sec-t">4. Lon</div>
-      <p class="c-p">Lønnen udgoer <strong>${loenStr}</strong>.</p>
+      <p class="c-p">Lønnen udgør <strong>${loenStr}</strong>.</p>
       <p class="c-p">Lønningsperioden løber fra den 20. i måneden til den 19. i den efterfølgende måned. Lønnen udbetales bagud den sidste bankdag efter lønningsperiodens afslutning til medarbejderens NemKonto.</p>
-      <p class="c-p">Lønnen reguleres en gang aarligt, første gang den ${lønreg}, efter droeftelse mellem parterne.</p>
+      <p class="c-p">Lønnen reguleres en gang årligt, første gang den ${lønreg}, efter drøftelse mellem parterne.</p>
     </div>
 
     <div class="c-sec">
       <div class="c-sec-t">5. Feriepenge og ferie</div>
-      <p class="c-p">Medarbejderen er omfattet af ferieloven. Feriegodtgørelse udgoer 12,5% af den ferieberettigede løn og indbetales loebende til FerieKonto eller Feriekort.</p>
-      <p class="c-p">Medarbejderen har ret til 25 feriedage pr. ferieaar (1. september – 31. august). Herudover har medarbejderen ret til 5 feriefridage pr. kalenderaar, der aftales med arbejdsgiveren.</p>
+      <p class="c-p">Medarbejderen er omfattet af ferieloven. Feriegodtgørelse udgør 12,5% af den ferieberettigede løn og indbetales løbende til FerieKonto eller Feriekort.</p>
+      <p class="c-p">Medarbejderen har ret til 25 feriedage pr. ferieår (1. september – 31. august). Herudover har medarbejderen ret til 5 feriefridage pr. kalenderår, der aftales med arbejdsgiveren.</p>
     </div>
 
     <div class="c-sec">
       <div class="c-sec-t">6. Pension</div>
       <p class="c-p">Medarbejderen er tilmeldt arbejdsgiverens pensionsordning hos <strong>${penUdb}</strong>.</p>
-      <p class="c-p">Det samlede pensionsbidrag udgoer ${penTotal}% af den pensionsgivende løn, fordelt med ${penArb}% som arbejdsgiverbidrag og ${penMed}% som lønmodtagerbidrag. Pension indbetales fra første ansættelsesdag.</p>
+      <p class="c-p">Det samlede pensionsbidrag udgør ${penTotal}% af den pensionsgivende løn, fordelt med ${penArb}% som arbejdsgiverbidrag og ${penMed}% som lønmodtagerbidrag. Pension indbetales fra første ansættelsesdag.</p>
     </div>
 
     <div class="c-sec">
@@ -1244,7 +1254,7 @@ function renderMontør(arbUrl,medUrl,sigDato,loenStr,isMedhjælper){
 
     <div class="c-sec">
       <div class="c-sec-t">${proeve!=='nej'?'11':'10'}. Sygdom</div>
-      <p class="c-p">Ved sygdom skal medarbejderen give arbejdsgiveren besked senest ved arbejdstids begyndelse paa første sygedag${v('syg_kontakt')?` til ${v('syg_kontakt')}${v('syg_tlf')?' paa tlf. '+v('syg_tlf'):''}`:''}.${v('syg_tid')?' Senest kl. '+v('syg_tid')+'.':''}</p>
+      <p class="c-p">Ved sygdom skal medarbejderen give arbejdsgiveren besked senest ved arbejdstids begyndelse på første sygedag${v('syg_kontakt')?` til ${v('syg_kontakt')}${v('syg_tlf')?' på tlf. '+v('syg_tlf'):''}`:''}.${v('syg_tid')?' Senest kl. '+v('syg_tid')+'.':''}</p>
       <p class="c-p">SMS/chatapp accepteres: ${box(sms==='ja')} Ja &nbsp; ${box(sms==='nej')} Nej</p>
       <p class="c-p">Arbejdsgiveren kan kræve lægeerklæring fra første sygedag.</p>
     </div>
@@ -1255,17 +1265,17 @@ function renderMontør(arbUrl,medUrl,sigDato,loenStr,isMedhjælper){
     </div>
 
     <div class="c-sec">
-      <div class="c-sec-t">${proeve!=='nej'?'13':'12'}. Oevrige vilkaar</div>
+      <div class="c-sec-t">${proeve!=='nej'?'13':'12'}. Øvrige vilkår</div>
       <p class="c-p">Ansættelsesforholdet er <strong>ikke</strong> omfattet af nogen kollektiv overenskomst. Eventuelle tvister om ansættelsesforholdet afgøres efter dansk ret ved de ordinære domstole.</p>
-      ${ck('ov_alkohol')?`<p class="c-p">Det er ikke tilladt at vaere påvirket af alkohol, euforiserende stoffer eller staerkt stemningsaendrende medicin under arbejdet. Overtraedelse kan medfoere bortvisning.</p>`:''}
-      ${ck('ov_beklaedn')?`<p class="c-p">Virksomheden stiller arbejdstoj og sikkerhedssko til rådighed, som skal baeres under arbejdet. Ved fratraeden tilbageleveres dette.</p>`:''}
-      <div class="c-chk">${box(ck('ov_haandbog'))} Medarbejderhaandbog udleveret</div>
+      ${ck('ov_alkohol')?`<p class="c-p">Det er ikke tilladt at være påvirket af alkohol, euforiserende stoffer eller stærkt stemningsændrende medicin under arbejdet. Overtrædelse kan medføre bortvisning.</p>`:''}
+      ${ck('ov_beklaedn')?`<p class="c-p">Virksomheden stiller arbejdstøj og sikkerhedssko til rådighed, som skal bæres under arbejdet. Ved fratræden tilbageleveres dette.</p>`:''}
+      <div class="c-chk">${box(ck('ov_haandbog'))} Medarbejderhåndbog udleveret</div>
     </div>
 
     <div class="c-sec">
       <div class="c-sec-t">Underskrifter</div>
-      <p class="c-p">Denne ansættelseskontrakt er udfærdiget i to eksemplarer, hvoraf parterne hver modtager eet.</p>
-      <p class="c-p c-note">Medarbejderen bekraefter med sin underskrift at have modtaget og gennemlæst denne ansættelseskontrakt.</p>
+      <p class="c-p">Denne ansættelseskontrakt er udfærdiget i to eksemplarer, hvoraf parterne hver modtager ét.</p>
+      <p class="c-p c-note">Medarbejderen bekræfter med sin underskrift at have modtaget og gennemlæst denne ansættelseskontrakt.</p>
       <div class="c-sig-row" style="margin-top:20px;">
         ${sigEl(arbUrl,'Arbejdsgiver')}
         ${sigEl(medUrl,'Medarbejder')}
