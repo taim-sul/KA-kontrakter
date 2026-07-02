@@ -1214,7 +1214,7 @@ function renderMontør(arbUrl,medUrl,sigDato,loenStr,isMedhjælper){
     ?`varetage montering af IKEA-møbler samt relaterede hjælpeopgaver i forbindelse hermed`
     :`varetage selvstændig montering af IKEA-møbler samt instruktion og koordinering af montørmedhjælpere`;
   const brugerDefineret=v('a_opgaver');
-  const opgaver=brugerDefineret||opgaveTekst;
+  const opgaver=brugerDefineret||opgaveTekst; 
   const penUdb=v('mont_pension')||'[pensionsudbyder]';
   const penArb=v('mont_pen_arb')||'1,25';
   const penMed=v('mont_pen_med')||'0,25';
